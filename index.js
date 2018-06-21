@@ -24,17 +24,16 @@ module.exports = app => {
     if (index > -1) {
       possibleReviewers.splice(index, 1)
     }
-    let firstReviewer = possibleReviewers[Math.floor(Maath.random()*possibleReviewers.length)]
+    let firstReviewer = possibleReviewers[Math.floor(Math.random()*possibleReviewers.length)]
     index = possibleReviewers.indexOf(firstReviewer)
     possibleReviewers.splice(index, 1)
 
-    let secondReviewer = possibleReviewers[Math.floor(Maath.random()*possibleReviewers.length)]
+    let secondReviewer = possibleReviewers[Math.floor(Math.random()*possibleReviewers.length)]
 
     try {
-      const result = await context.github.pullRequests.createReviewRequest(context.issue({reviewers: [firstReviewer, secondReviewer]}))
+      await context.github.pullRequests.createReviewRequest(context.issue({reviewers: [firstReviewer, secondReviewer]}))
     } catch(error) {
       context.log({ error: error })
     }
-    context.log({result: result })
   }
 }
