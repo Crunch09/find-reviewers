@@ -17,7 +17,8 @@ module.exports = app => {
   })
 
   async function assignReviewers(context) {
-    const owner = context.payload.repository.owner.login
+    const owner = context.payload.pull_request.user.login
+    context.log({ owner: owner })
 
     let possibleReviewers = ["annebyrne", "Crunch09", "erikamorenosierra", "nikz", "qermyt", "RomainPiel"]
     let index = possibleReviewers.indexOf(owner)
