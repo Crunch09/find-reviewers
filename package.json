@@ -1,0 +1,40 @@
+{
+  "name": "find-reviewers",
+  "version": "1.0.0",
+  "description": "",
+  "author": "Florian Thomas <flo@florianthomas.net> (https://github.com/Crunch09/find-reviewers)",
+  "license": "ISC",
+  "repository": "https://github.com/Crunch09/find-reviewers.git",
+  "homepage": "https://github.com/Crunch09/find-reviewers",
+  "bugs": "https://github.com/Crunch09/find-reviewers/issues",
+  "keywords": [
+    "probot",
+    "github",
+    "probot-app"
+  ],
+  "scripts": {
+    "dev": "nodemon --exec \"npm start\"",
+    "start": "probot run ./index.js",
+    "lint": "standard --fix",
+    "test": "jest && standard",
+    "test:watch": "jest --watch --notify --notifyMode=change --coverage"
+  },
+  "dependencies": {
+    "npm": "^6.1.0",
+    "probot": "^6.0.0"
+  },
+  "devDependencies": {
+    "jest": "^22.4.3",
+    "nodemon": "^1.17.2",
+    "smee-client": "^1.0.1",
+    "standard": "^10.0.3"
+  },
+  "engines": {
+    "node": ">= 8.3.0"
+  },
+  "standard": {
+    "env": [
+      "jest"
+    ]
+  }
+}
