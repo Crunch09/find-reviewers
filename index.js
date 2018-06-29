@@ -11,30 +11,43 @@ module.exports = app => {
     const label = context.payload.label.name
 
     context.log({event: context.event, label: label})
-    if(label == "ready-for-review"){
-      await assignReviewers(context)
+
+    const config = await context.config('reviewers.yml', {label: 'ready-for-review'})
+
+    if (label === config.label) {
+      await assignReviewers(context, config)
     }
   })
 
-  async function assignReviewers(context) {
+  async function assignReviewers (context, config) {
     const owner = context.payload.pull_request.user.login
     context.log({ owner: owner })
 
-    let possibleReviewers = ["annebyrne", "Crunch09", "erikamorenosierra", "nikz", "qermyt", "RomainPiel"]
-    let index = possibleReviewers.indexOf(owner)
-    if (index > -1) {
-      possibleReviewers.splice(index, 1)
-    }
-    let firstReviewer = possibleReviewers[Math.floor(Math.random()*possibleReviewers.length)]
-    index = possibleReviewers.indexOf(firstReviewer)
-    possibleReviewers.splice(index, 1)
+    if (config.possible_reviewers && config.number_of_picks) {
+      let possibleReviewers = config.possible_reviewers
+      let numberOfPicks = config.number_of_picks
 
-    let secondReviewer = possibleReviewers[Math.floor(Math.random()*possibleReviewers.length)]
+      let index = possibleReviewers.indexOf(owner)
+      if (index > -1) {
+        possibleReviewers.splice(index, 1)
+      }
 
-    try {
-      await context.github.pullRequests.createReviewRequest(context.issue({reviewers: [firstReviewer, secondReviewer]}))
-    } catch(error) {
-      context.log({ error: error })
+      let pickedReviewers = []
+      for (let i = 0; i < numberOfPicks; i++) {
+        let pickedReviewer = possibleReviewers[Math.floor(Math.random() * possibleReviewers.length)]
+        index = possibleReviewers.indexOf(pickedReviewer)
+        possibleReviewers.splice(index, 1)
+
+        pickedReviewers.push(pickedReviewer)
+      }
+
+      if (pickedReviewers.length > 0) {
+        try {
+          await context.github.pullRequests.createReviewRequest(context.issue({reviewers: pickedReviewers}))
+        } catch (error) {
+          context.log({ error: error })
+        }
+      }
     }
   }
 }
