@@ -32,6 +32,17 @@ module.exports = app => {
         possibleReviewers.splice(index, 1)
       }
 
+
+
+      const existingReviewers = await context.github.pullRequests.getReviewRequests(context.issue())
+
+      for (let i = 0; i < existingReviewers.data.users.length; i++) {
+        index = possibleReviewers.indexOf(existingReviewers.data.users[i].login)
+        if (index > -1) {
+          possibleReviewers.splice(index, 1)
+        }
+      }
+
       let pickedReviewers = []
       for (let i = 0; i < numberOfPicks; i++) {
         let pickedReviewer = possibleReviewers[Math.floor(Math.random() * possibleReviewers.length)]
@@ -43,7 +54,14 @@ module.exports = app => {
 
       if (pickedReviewers.length > 0) {
         try {
-          await context.github.pullRequests.createReviewRequest(context.issue({reviewers: pickedReviewers}))
+          await context.github.pullRequests.createReviewRequest(
+            context.issue(
+              {
+                reviewers: [...pickedReviewers, ...existingReviewers.data.users.map(x => x.login)].filter(x => x),
+                team_reviewers: existingReviewers.data.teams.map(x => x.slug).filter(y => y)
+              }
+            )
+          )
         } catch (error) {
           context.log({ error: error })
         }
