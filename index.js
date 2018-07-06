@@ -20,11 +20,11 @@ module.exports = app => {
   })
 
   async function assignReviewers (context, config) {
-    const owner = context.payload.pull_request.user.login
+    const owner = context.payload.pull_request.user.login.toLowerCase()
     context.log({ owner: owner })
 
     if (config.possible_reviewers && config.number_of_picks) {
-      let possibleReviewers = config.possible_reviewers
+      let possibleReviewers = config.possible_reviewers.map(x => x.toLowerCase())
       let numberOfPicks = config.number_of_picks
 
       let index = possibleReviewers.indexOf(owner)
@@ -37,7 +37,7 @@ module.exports = app => {
       const existingReviewers = await context.github.pullRequests.getReviewRequests(context.issue())
 
       for (let i = 0; i < existingReviewers.data.users.length; i++) {
-        index = possibleReviewers.indexOf(existingReviewers.data.users[i].login)
+        index = possibleReviewers.indexOf(existingReviewers.data.users[i].login.toLowerCase())
         if (index > -1) {
           possibleReviewers.splice(index, 1)
         }
@@ -57,7 +57,7 @@ module.exports = app => {
           await context.github.pullRequests.createReviewRequest(
             context.issue(
               {
-                reviewers: [...pickedReviewers, ...existingReviewers.data.users.map(x => x.login)].filter(x => x),
+                reviewers: [...pickedReviewers, ...existingReviewers.data.users.map(x => x.login.toLowerCase())].filter(x => x),
                 team_reviewers: existingReviewers.data.teams.map(x => x.slug).filter(y => y)
               }
             )
