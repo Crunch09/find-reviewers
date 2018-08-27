@@ -19,6 +19,62 @@ module.exports = app => {
     }
   })
 
+  app.on(`issue_comment.created`, async context => {
+    let commentRegex = /^\/reviewers unassign @(\S+)/gi
+    const body = context.payload.comment.body
+    let unassignment = commentRegex.exec(body)
+
+    if (unassignment !== null) {
+      let unassignedPerson = unassignment[1].toLowerCase()
+      let currentReviewers = await getCurrentReviewers(context)
+      let mappedCurrentReviewers = currentReviewers.data.users.map(x => x.login.toLowerCase()).filter(x => x)
+
+      context.log({currentReviewers: mappedCurrentReviewers, unassignedPerson: unassignedPerson})
+      if (mappedCurrentReviewers.includes(unassignedPerson)) {
+
+        let replacementReviewer = await getPossibleReviewer(context, [unassignedPerson.toLowerCase(), ...mappedCurrentReviewers].filter(x => x))
+        if (replacementReviewer) {
+          await context.github.pullRequests.deleteReviewRequest(
+            context.issue({ reviewers: [unassignment[1]] })
+          )
+          await context.github.pullRequests.createReviewRequest(
+            context.issue(
+              {
+                reviewers: [replacementReviewer.toLowerCase(), ...mappedCurrentReviewers.filter(name => name != unassignedPerson)],
+                team_reviewers: currentReviewers.data.teams.map(x => x.slug).filter(y => y)
+              }
+            )
+          )
+        }
+      }
+    }
+  })
+
+  async function getCurrentReviewers (context) {
+    return await context.github.pullRequests.getReviewRequests(context.issue())
+  }
+
+  async function getPossibleReviewer (context, reviewersToExclude) {
+    const uniqueReviewersToExclude = [...(new Set(reviewersToExclude))];
+
+    const owner = context.payload.issue.user.login.toLowerCase()
+    reviewersToExclude = [owner, ...uniqueReviewersToExclude].filter(x => x)
+
+    const config = await context.config('reviewers.yml', {label: 'ready-for-review'})
+    if (config.possible_reviewers && config.number_of_picks) {
+      let possibleReviewers = config.possible_reviewers.map(x => x.toLowerCase())
+
+      for (let i = 0; i < reviewersToExclude.length; i++) {
+        let index = possibleReviewers.indexOf(reviewersToExclude[i])
+        if (index > -1) {
+          possibleReviewers.splice(index, 1)
+        }
+      }
+      return possibleReviewers[Math.floor(Math.random() * possibleReviewers.length)]
+    }
+    return null
+  }
+
   async function assignReviewers (context, config) {
     const owner = context.payload.pull_request.user.login.toLowerCase()
     context.log({ owner: owner })
@@ -32,9 +88,7 @@ module.exports = app => {
         possibleReviewers.splice(index, 1)
       }
 
-
-
-      const existingReviewers = await context.github.pullRequests.getReviewRequests(context.issue())
+      const existingReviewers = await getCurrentReviewers(context)
 
       for (let i = 0; i < existingReviewers.data.users.length; i++) {
         index = possibleReviewers.indexOf(existingReviewers.data.users[i].login.toLowerCase())
