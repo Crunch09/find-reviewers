@@ -1,19 +1,8 @@
 module.exports = app => {
-  // Your code here
-  app.log('Yay, the app was loaded!')
-
-  // For more information on building apps:
-  // https://probot.github.io/docs/
-
-  // To get your app running against GitHub, see:
-  // https://probot.github.io/docs/development/
   app.on(`pull_request.labeled`, async context => {
     const label = context.payload.label.name
 
-    context.log({event: context.event, label: label})
-
-    const config = await context.config('reviewers.yml', {label: 'ready-for-review'})
-
+    const config = await context.config('reviewers.yml', { label: 'ready-for-review' })
     if (label === config.label) {
       await assignReviewers(context, config)
     }
@@ -29,9 +18,7 @@ module.exports = app => {
       let currentReviewers = await getCurrentReviewers(context)
       let mappedCurrentReviewers = currentReviewers.data.users.map(x => x.login.toLowerCase()).filter(x => x)
 
-      context.log({currentReviewers: mappedCurrentReviewers, unassignedPerson: unassignedPerson})
       if (mappedCurrentReviewers.includes(unassignedPerson)) {
-
         let replacementReviewer = await getPossibleReviewer(context, [unassignedPerson.toLowerCase(), ...mappedCurrentReviewers].filter(x => x))
         if (replacementReviewer) {
           await context.github.pullRequests.deleteReviewRequest(
@@ -40,7 +27,7 @@ module.exports = app => {
           await context.github.pullRequests.createReviewRequest(
             context.issue(
               {
-                reviewers: [replacementReviewer.toLowerCase(), ...mappedCurrentReviewers.filter(name => name != unassignedPerson)],
+                reviewers: [replacementReviewer.toLowerCase(), ...mappedCurrentReviewers.filter(name => name !== unassignedPerson)],
                 team_reviewers: currentReviewers.data.teams.map(x => x.slug).filter(y => y)
               }
             )
@@ -51,16 +38,16 @@ module.exports = app => {
   })
 
   async function getCurrentReviewers (context) {
-    return await context.github.pullRequests.getReviewRequests(context.issue())
+    return context.github.pullRequests.getReviewRequests(context.issue())
   }
 
   async function getPossibleReviewer (context, reviewersToExclude) {
-    const uniqueReviewersToExclude = [...(new Set(reviewersToExclude))];
+    const uniqueReviewersToExclude = [...(new Set(reviewersToExclude))]
 
     const owner = context.payload.issue.user.login.toLowerCase()
     reviewersToExclude = [owner, ...uniqueReviewersToExclude].filter(x => x)
 
-    const config = await context.config('reviewers.yml', {label: 'ready-for-review'})
+    const config = await context.config('reviewers.yml', { label: 'ready-for-review' })
     if (config.possible_reviewers && config.number_of_picks) {
       let possibleReviewers = config.possible_reviewers.map(x => x.toLowerCase())
 
@@ -77,7 +64,6 @@ module.exports = app => {
 
   async function assignReviewers (context, config) {
     const owner = context.payload.pull_request.user.login.toLowerCase()
-    context.log({ owner: owner })
 
     if (config.possible_reviewers && config.number_of_picks) {
       let possibleReviewers = config.possible_reviewers.map(x => x.toLowerCase())
@@ -105,7 +91,6 @@ module.exports = app => {
 
         pickedReviewers.push(pickedReviewer)
       }
-
       if (pickedReviewers.length > 0) {
         try {
           await context.github.pullRequests.createReviewRequest(

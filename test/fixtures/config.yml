@@ -1,0 +1,9 @@
+label: ready-for-review
+number_of_picks: 2
+possible_reviewers:
+  - crunch09
+  - luke
+  - octobot
+  - mathilda
+  - james
+  - cx-3po
