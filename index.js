@@ -2,9 +2,11 @@ module.exports = app => {
   app.on(`pull_request.labeled`, async context => {
     const label = context.payload.label.name
 
-    const config = await context.config('reviewers.yml', { label: 'ready-for-review' })
-    if (label === config.label) {
-      await assignReviewers(context, config)
+    const config = await context.config('reviewers.yml')
+    for (let i in config.labels) {
+      if (label === config.labels[i].label) {
+        await assignReviewers(context, config.labels[i])
+      }
     }
   })
 
@@ -19,7 +21,7 @@ module.exports = app => {
       let mappedCurrentReviewers = currentReviewers.data.users.map(x => x.login.toLowerCase()).filter(x => x)
 
       if (mappedCurrentReviewers.includes(unassignedPerson)) {
-        let replacementReviewer = await getPossibleReviewer(context, [unassignedPerson.toLowerCase(), ...mappedCurrentReviewers].filter(x => x))
+        let replacementReviewer = await getPossibleReviewer(context, [unassignedPerson.toLowerCase(), ...mappedCurrentReviewers].filter(x => x), unassignedPerson.toLowerCase())
         if (replacementReviewer) {
           await context.github.pullRequests.deleteReviewRequest(
             context.issue({ reviewers: [unassignment[1]] })
@@ -41,69 +43,79 @@ module.exports = app => {
     return context.github.pullRequests.getReviewRequests(context.issue())
   }
 
-  async function getPossibleReviewer (context, reviewersToExclude) {
+  async function getPossibleReviewer (context, reviewersToExclude, unassignedPerson) {
+    const currentLabels = context.payload.issue.labels.map(x => x.name)
+
     const uniqueReviewersToExclude = [...(new Set(reviewersToExclude))]
 
     const owner = context.payload.issue.user.login.toLowerCase()
     reviewersToExclude = [owner, ...uniqueReviewersToExclude].filter(x => x)
 
-    const config = await context.config('reviewers.yml', { label: 'ready-for-review' })
-    if (config.possible_reviewers && config.number_of_picks) {
-      let possibleReviewers = config.possible_reviewers.map(x => x.toLowerCase())
-
-      for (let i = 0; i < reviewersToExclude.length; i++) {
-        let index = possibleReviewers.indexOf(reviewersToExclude[i])
-        if (index > -1) {
-          possibleReviewers.splice(index, 1)
+    const config = await context.config('reviewers.yml')
+    for (let i in config.labels) {
+      if (currentLabels.includes(config.labels[i].label)) {
+        for (let g in config.labels[i].groups) {
+          let specificConfig = config.labels[i].groups[g]
+          let possibleReviewers = specificConfig.possible_reviewers.map(x => x.toLowerCase())
+          if (specificConfig.possible_reviewers && specificConfig.possible_reviewers.includes(unassignedPerson) && specificConfig.number_of_picks) {
+            for (let i = 0; i < reviewersToExclude.length; i++) {
+              let index = possibleReviewers.indexOf(reviewersToExclude[i])
+              if (index > -1) {
+                possibleReviewers.splice(index, 1)
+              }
+            }
+            return possibleReviewers[Math.floor(Math.random() * possibleReviewers.length)]
+          }
         }
       }
-      return possibleReviewers[Math.floor(Math.random() * possibleReviewers.length)]
     }
     return null
   }
 
   async function assignReviewers (context, config) {
     const owner = context.payload.pull_request.user.login.toLowerCase()
+    const existingReviewers = await getCurrentReviewers(context)
+    let pickedReviewers = []
 
-    if (config.possible_reviewers && config.number_of_picks) {
-      let possibleReviewers = config.possible_reviewers.map(x => x.toLowerCase())
-      let numberOfPicks = config.number_of_picks
+    for (let i in config.groups) {
+      let group = config.groups[i]
+      if (group.possible_reviewers && group.number_of_picks) {
+        let possibleReviewers = group.possible_reviewers.map(x => x.toLowerCase())
+        let numberOfPicks = group.number_of_picks
 
-      let index = possibleReviewers.indexOf(owner)
-      if (index > -1) {
-        possibleReviewers.splice(index, 1)
-      }
-
-      const existingReviewers = await getCurrentReviewers(context)
-
-      for (let i = 0; i < existingReviewers.data.users.length; i++) {
-        index = possibleReviewers.indexOf(existingReviewers.data.users[i].login.toLowerCase())
+        let index = possibleReviewers.indexOf(owner)
         if (index > -1) {
           possibleReviewers.splice(index, 1)
         }
-      }
 
-      let pickedReviewers = []
-      for (let i = 0; i < numberOfPicks; i++) {
-        let pickedReviewer = possibleReviewers[Math.floor(Math.random() * possibleReviewers.length)]
-        index = possibleReviewers.indexOf(pickedReviewer)
-        possibleReviewers.splice(index, 1)
-
-        pickedReviewers.push(pickedReviewer)
-      }
-      if (pickedReviewers.length > 0) {
-        try {
-          await context.github.pullRequests.createReviewRequest(
-            context.issue(
-              {
-                reviewers: [...pickedReviewers, ...existingReviewers.data.users.map(x => x.login.toLowerCase())].filter(x => x),
-                team_reviewers: existingReviewers.data.teams.map(x => x.slug).filter(y => y)
-              }
-            )
-          )
-        } catch (error) {
-          context.log({ error: error })
+        for (let i = 0; i < existingReviewers.data.users.length; i++) {
+          index = possibleReviewers.indexOf(existingReviewers.data.users[i].login.toLowerCase())
+          if (index > -1) {
+            possibleReviewers.splice(index, 1)
+          }
         }
+
+        for (let i = 0; i < numberOfPicks; i++) {
+          let pickedReviewer = possibleReviewers[Math.floor(Math.random() * possibleReviewers.length)]
+          index = possibleReviewers.indexOf(pickedReviewer)
+          possibleReviewers.splice(index, 1)
+
+          pickedReviewers.push(pickedReviewer)
+        }
+      }
+    }
+    if (pickedReviewers.length > 0) {
+      try {
+        await context.github.pullRequests.createReviewRequest(
+          context.issue(
+            {
+              reviewers: [...pickedReviewers, ...existingReviewers.data.users.map(x => x.login.toLowerCase())].filter(x => x),
+              team_reviewers: existingReviewers.data.teams.map(x => x.slug).filter(y => y)
+            }
+          )
+        )
+      } catch (error) {
+        context.log({ error: error })
       }
     }
   }

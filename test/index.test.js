@@ -53,13 +53,15 @@ describe('Find reviewers', () => {
   })
 
   test('PR labeled', async () => {
-    github.pullRequests.createReviewRequest = ({ owner, repo, number, reviewers, teamReviewers }) => {
-      expect(config.possible_reviewers).toEqual(expect.arrayContaining(reviewers))
-    }
-
-    app.auth = () => Promise.resolve(github)
-
+    github.pullRequests.createReviewRequest = jest.fn().mockImplementation(({ owner, repo, number, reviewers, teamReviewers }) => Promise.resolve())
     await probot.receive({ name: `pull_request`, payload: pullRequestLabeled })
+
+    expect(github.pullRequests.createReviewRequest.mock.calls.length).toBe(1)
+    expect(github.pullRequests.createReviewRequest.mock.calls[0][0].reviewers.length).toBe(3)
+    let intersection = config.labels[0].groups[0].possible_reviewers.filter(x => github.pullRequests.createReviewRequest.mock.calls[0][0].reviewers.includes(x))
+    expect(intersection.length).toBe(2)
+    intersection = config.labels[0].groups[1].possible_reviewers.filter(x => github.pullRequests.createReviewRequest.mock.calls[0][0].reviewers.includes(x))
+    expect(intersection.length).toBe(1)
   })
 
   test('Reviewer unsassigned', async () => {
@@ -69,15 +71,17 @@ describe('Find reviewers', () => {
         teams: []
       }
     }))
-    github.pullRequests.deleteReviewRequest = ({ owner, repo, number, reviewers, teamReviewers }) => {
-      expect(reviewers).toEqual(['CX-3PO'])
-    }
+    github.pullRequests.deleteReviewRequest = jest.fn().mockImplementation(({ owner, repo, number, reviewers, teamReviewers }) => Promise.resolve())
 
     github.pullRequests.createReviewRequest = ({ owner, repo, number, reviewers, teamReviewers }) => {
-      expect(config.possible_reviewers).toEqual(expect.arrayContaining(reviewers))
+      expect(config.labels[0].groups[0].possible_reviewers).toEqual(expect.arrayContaining(reviewers))
       expect(reviewers).toEqual(expect.not.arrayContaining(['cx-3po']))
       expect(reviewers.length).toEqual(1)
     }
+
     await probot.receive({ name: `issue_comment`, payload: issueCommentCreated })
+    expect(github.pullRequests.getReviewRequests.mock.calls.length).toBe(1)
+    expect(github.pullRequests.deleteReviewRequest.mock.calls.length).toBe(1)
+    expect(github.pullRequests.deleteReviewRequest.mock.calls[0][0].reviewers).toEqual(['CX-3PO'])
   })
 })

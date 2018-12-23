@@ -1,9 +1,30 @@
-label: ready-for-review
-number_of_picks: 2
-possible_reviewers:
-  - crunch09
-  - luke
-  - octobot
-  - mathilda
-  - james
-  - cx-3po
+---
+labels:
+  -
+    groups:
+      -
+        number_of_picks: 2
+        possible_reviewers:
+          - florian
+          - erika
+          - octobot
+          - mathilda
+          - james
+          - cx-3po
+      -
+        number_of_picks: 1
+        possible_reviewers:
+          - romain
+          - maria
+          - amal
+          - ana
+    label: "ready-for-review"
+  -
+    groups:
+      -
+        number_of_picks: 1
+        possible_reviewers:
+          - foo
+          - bar
+          - baz
+    label: "Ready for review - small"
