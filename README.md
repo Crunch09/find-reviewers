@@ -1,6 +1,8 @@
 # find-reviewers
 
-> A GitHub App built with [Probot](https://github.com/probot/probot) that 
+> A GitHub App built with [Probot](https://github.com/probot/probot) that randomly assigns reviewers out of a given list of
+possible reviewers when a specified label
+is added to a pull-request.
 
 ## Setup
 
@@ -11,6 +13,10 @@ npm install
 # Run the bot
 npm start
 ```
+
+## Example
+
+You can see an example config file [here](test/fixtures/config.yml)
 
 ## Contributing
 
