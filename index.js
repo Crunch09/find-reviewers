@@ -1,3 +1,5 @@
+const Slack = require('./lib/slack')
+
 module.exports = app => {
   app.on(`pull_request.labeled`, async context => {
     const label = context.payload.label.name
@@ -5,7 +7,7 @@ module.exports = app => {
     const config = await context.config('reviewers.yml')
     for (let i in config.labels) {
       if (label === config.labels[i].label) {
-        await assignReviewers(context, config.labels[i])
+        await assignReviewers(context, config.labels[i], config.notifications)
       }
     }
   })
@@ -72,7 +74,7 @@ module.exports = app => {
     return null
   }
 
-  async function assignReviewers (context, config) {
+  async function assignReviewers (context, config, notificationsConfig) {
     const owner = context.payload.pull_request.user.login.toLowerCase()
     const existingReviewers = await getCurrentReviewers(context)
     let pickedReviewers = []
@@ -114,8 +116,12 @@ module.exports = app => {
             }
           )
         )
+        if (!!notificationsConfig && notificationsConfig.hasOwnProperty('slack')) {
+          let slack = new Slack(context.payload.pull_request, notificationsConfig.slack, pickedReviewers)
+          await slack.sendMessage()
+        }
       } catch (error) {
-        context.log({ error: error })
+        context.log.error({ error: error.message })
       }
     }
   }

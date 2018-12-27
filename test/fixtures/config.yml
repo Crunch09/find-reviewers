@@ -28,3 +28,7 @@ labels:
           - bar
           - baz
     label: "Ready for review - small"
+notifications:
+  slack:
+    url: "https://hooks.slack.com/services/AAA/BBB/CCC"
+    channel: "#pull_requests"
