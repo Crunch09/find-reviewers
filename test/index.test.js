@@ -82,7 +82,7 @@ describe('Find reviewers', () => {
               ]
             }
           ] })
-        .reply(200, { success: true })
+        .reply(200, 'ok')
 
       await probot.receive({ name: `pull_request`, payload: pullRequestLabeled })
 
