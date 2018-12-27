@@ -42,7 +42,7 @@ module.exports = app => {
   })
 
   async function getCurrentReviewers (context) {
-    return context.github.pullRequests.getReviewRequests(context.issue())
+    return context.github.pullRequests.listReviewRequests(context.issue())
   }
 
   async function getPossibleReviewer (context, reviewersToExclude, unassignedPerson) {

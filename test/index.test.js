@@ -34,7 +34,7 @@ describe('Find reviewers', () => {
         }))
       },
       pullRequests: {
-        getReviewRequests: jest.fn().mockImplementation(() => Promise.resolve({
+        listReviewRequests: jest.fn().mockImplementation(() => Promise.resolve({
           data: {
             users: [],
             teams: []
@@ -107,7 +107,7 @@ describe('Find reviewers', () => {
   })
 
   test('Reviewer unsassigned', async () => {
-    github.pullRequests.getReviewRequests = jest.fn().mockImplementation(() => Promise.resolve({
+    github.pullRequests.listReviewRequests = jest.fn().mockImplementation(() => Promise.resolve({
       data: {
         users: [{ login: 'cx-3po' }],
         teams: []
@@ -122,7 +122,7 @@ describe('Find reviewers', () => {
     }
 
     await probot.receive({ name: `issue_comment`, payload: issueCommentCreated })
-    expect(github.pullRequests.getReviewRequests.mock.calls.length).toBe(1)
+    expect(github.pullRequests.listReviewRequests.mock.calls.length).toBe(1)
     expect(github.pullRequests.deleteReviewRequest.mock.calls.length).toBe(1)
     expect(github.pullRequests.deleteReviewRequest.mock.calls[0][0].reviewers).toEqual(['CX-3PO'])
   })
