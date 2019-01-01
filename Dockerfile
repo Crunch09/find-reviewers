@@ -6,4 +6,4 @@ COPY . .
 RUN npm install --production
 
 ENTRYPOINT ["probot", "receive", "-p", "../../github/workflow/event.json"]
-CMD ["index.js"]
+CMD ["/github/workspace/index.js"]
