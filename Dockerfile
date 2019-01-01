@@ -5,5 +5,5 @@ ENV PATH=$PATH:$WORKDIR/node_modules/.bin
 COPY . .
 RUN npm install --production
 
-ENTRYPOINT ["probot", "receive"]
+ENTRYPOINT ["probot", "receive", "-p", "../../github/workflow/event.json"]
 CMD ["/app/index.js"]
