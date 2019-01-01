@@ -1,6 +1,6 @@
 FROM node:10
 
-ENV PATH=$PATH:$WORKDIR/node_modules/.bin
+ENV PATH=$PATH:/github/workspace/node_modules/.bin
 
 COPY . .
 RUN npm install --production
