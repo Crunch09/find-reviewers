@@ -21,7 +21,7 @@
   },
   "dependencies": {
     "npm": "^6.5.0",
-    "probot": "^7.4.0"
+    "probot": "github:Crunch09/probot#debug"
   },
   "devDependencies": {
     "btoa": "^1.2.1",
