@@ -6,4 +6,4 @@ ENV LOG_LEVEL=debug
 COPY . .
 RUN npm install --production
 
-ENTRYPOINT ["probot", "receive", "-p", "../../github/workflow/event.json", "/github/workspace/index.js"]
+RUN probot receive -p ../../github/workflow/event.json /github/workspace/index.js
