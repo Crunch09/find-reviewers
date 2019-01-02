@@ -4,12 +4,10 @@ const fs = require('fs')
 const path = require('path')
 const btoa = require('btoa')
 
-// You can import your modules
 const { Probot } = require('probot')
 const findReviewers = require('..')
 
 // Require fixtures
-// const config = yaml.safeLoad(fs.readFileSync(path.resolve(__dirname, 'fixtures/config.yml'), 'utf8'))
 const pullRequestLabeled = require('./fixtures/pull_request.labeled')
 const issueCommentCreated = require('./fixtures/issue_comment.created')
 
@@ -59,13 +57,14 @@ describe('Find reviewers', () => {
       hexConfig = btoa(JSON.stringify(config))
     })
     test('Complete config', async () => {
-      nock('https://hooks.slack.com/services/AAA/BBB')
-        .post('/CCC', {
+      let postSlackMessage = nock('https://hooks.slack.com/services/AAA/BBB/CCC')
+        .post('', {
           'channel': '#pull_requests',
           'username': 'find-reviewers',
           'text': `Review requested: <https://github.com/Crunch09/octo-test/pull/2|Crunch09/octo-test#2 by Crunch09>`,
           'attachments': [
             {
+              'pretext': 'some readme updates',
               'fallback': /.+1 commits, \+2 -0/,
               'color': 'good',
               'fields': [
@@ -92,6 +91,7 @@ describe('Find reviewers', () => {
       expect(intersection.length).toBe(2)
       intersection = config.labels[0].groups[1].possible_reviewers.filter(x => github.pullRequests.createReviewRequest.mock.calls[0][0].reviewers.includes(x))
       expect(intersection.length).toBe(1)
+      expect(postSlackMessage.isDone()).toBeTruthy()
     })
 
     describe('Config without notifications', async () => {
