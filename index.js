@@ -59,7 +59,7 @@ module.exports = app => {
         for (let g in config.labels[i].groups) {
           let specificConfig = config.labels[i].groups[g]
           let possibleReviewers = specificConfig.possible_reviewers.map(x => x.toLowerCase())
-          if (specificConfig.possible_reviewers && specificConfig.possible_reviewers.includes(unassignedPerson) && specificConfig.number_of_picks) {
+          if (possibleReviewers && possibleReviewers.includes(unassignedPerson) && specificConfig.number_of_picks) {
             for (let i = 0; i < reviewersToExclude.length; i++) {
               let index = possibleReviewers.indexOf(reviewersToExclude[i])
               if (index > -1) {
