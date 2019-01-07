@@ -14,9 +14,54 @@ npm install
 npm start
 ```
 
-## Example
+## Configuration
 
-You can see an example config file [here](test/fixtures/config.yml)
+Create a file `~/.github/reviewers.yml` in your repository to set up the configuration.
+
+```yaml
+---
+# Describe the labels that once added to a pull request cause the app to assign
+# randomly chosen reviewers.
+labels:
+  -
+    # Define the groups of reviewers from the reviewers will be chosen. In this
+    # example, when the label `ready-for-review` is applied, two reviewers are
+    # chosen from the first group and one reviewer from the second group.
+    groups:
+      -
+        number_of_picks: 2
+        possible_reviewers:
+          - florian
+          - erika
+          - octobot
+          - mathilda
+          - james
+          - cx-3po
+      -
+        number_of_picks: 1
+        possible_reviewers:
+          - romain
+          - maria
+          - amal
+          - ana
+    label: "ready-for-review"
+  -
+    groups:
+      -
+        number_of_picks: 1
+        possible_reviewers:
+          - foo
+          - bar
+          - baz
+    label: "Ready for review - small"
+# Optional: Define which Slack channel to notify once random reviewers have been
+# chosen and their review was requested.
+# The `URL` is of an [Incoming Webhook](https://api.slack.com/incoming-webhooks).
+notifications:
+  slack:
+    url: "https://hooks.slack.com/services/AAA/BBB/CCC"
+    channel: "#pull_requests"
+```
 
 ## Contributing
 
