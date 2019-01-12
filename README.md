@@ -1,4 +1,4 @@
-# find-reviewers
+# find-reviewers [![Build Status](https://travis-ci.com/Crunch09/find-reviewers.svg?branch=master)](https://travis-ci.com/Crunch09/find-reviewers)
 
 > A GitHub App built with [Probot](https://github.com/probot/probot) that randomly assigns reviewers out of a given list of
 possible reviewers when a specified label
