@@ -24,7 +24,7 @@ Create a file `~/.github/reviewers.yml` in your repository to set up the configu
 # randomly chosen reviewers.
 labels:
   -
-    # Define the groups of reviewers from the reviewers will be chosen. In this
+    # Define the groups of reviewers from which the reviewers will be chosen. In this
     # example, when the label `ready-for-review` is applied, two reviewers are
     # chosen from the first group and one reviewer from the second group.
     groups:
