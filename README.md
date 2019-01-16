@@ -4,15 +4,9 @@
 possible reviewers when a specified label
 is added to a pull-request.
 
-## Setup
+## Installation from the GitHub App Store
 
-```sh
-# Install dependencies
-npm install
-
-# Run the bot
-npm start
-```
+Go to https://github.com/apps/find-reviewers and follow the instructions.
 
 ## Configuration
 
@@ -64,6 +58,15 @@ notifications:
 ```
 
 ## Contributing
+
+### Local setup
+```sh
+# Install dependencies
+npm install
+
+# Run the bot
+npm start
+```
 
 If you have suggestions for how find-reviewers could be improved, or want to report a bug, open an issue! We'd love all and any contributions.
 
