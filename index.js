@@ -85,11 +85,13 @@ module.exports = app => {
         let possibleReviewers = group.possible_reviewers.map(x => x.toLowerCase())
         let numberOfPicks = group.number_of_picks
 
+        // Remove PR owner from the array of possible reviewers
         let index = possibleReviewers.indexOf(owner)
         if (index > -1) {
           possibleReviewers.splice(index, 1)
         }
 
+        // Remove existing reviewers from the array of possible reviewers
         for (let i = 0; i < existingReviewers.data.users.length; i++) {
           index = possibleReviewers.indexOf(existingReviewers.data.users[i].login.toLowerCase())
           if (index > -1) {
@@ -97,7 +99,16 @@ module.exports = app => {
           }
         }
 
-        for (let i = 0; i < numberOfPicks; i++) {
+        // Remove reviewers already picked from the array of possible reviewers
+        for (let i = 0; i < pickedReviewers.length; i++) {
+          index = possibleReviewers.indexOf(pickedReviewers[i])
+          if (index > -1) {
+            possibleReviewers.splice(index, 1)
+          }
+        }
+
+        // Pick reviewers at random until you have enough, or run out of possible reviewers
+        for (let i = 0; i < numberOfPicks && possibleReviewers.length > 0; i++) {
           let pickedReviewer = possibleReviewers[Math.floor(Math.random() * possibleReviewers.length)]
           index = possibleReviewers.indexOf(pickedReviewer)
           possibleReviewers.splice(index, 1)

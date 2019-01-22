@@ -14,9 +14,35 @@ const issueCommentCreated = require('./fixtures/issue_comment.created')
 nock.disableNetConnect()
 
 describe('Find reviewers', () => {
-  let probot, github, app, config, hexConfig
+  let probot, github, app, config, hexConfig, postSlackMessage
 
   beforeEach(() => {
+    postSlackMessage = nock('https://hooks.slack.com/services/AAA/BBB/CCC')
+      .post('', {
+        'channel': '#pull_requests',
+        'username': 'find-reviewers',
+        'text': `Review requested: <https://github.com/Crunch09/octo-test/pull/2|Crunch09/octo-test#2 by Crunch09>`,
+        'attachments': [
+          {
+            'pretext': 'some readme updates',
+            'fallback': /.+1 commits, \+2 -0/,
+            'color': 'good',
+            'fields': [
+              {
+                'title': 'Requested reviewers',
+                'value': /.+/,
+                'short': true
+              },
+              {
+                'title': 'Changes',
+                'value': '1 commits, +2 -0',
+                'short': true
+              }
+            ]
+          }
+        ] })
+      .reply(200, 'ok')
+
     probot = new Probot({})
 
     config = yaml.safeLoad(fs.readFileSync(path.resolve(__dirname, 'fixtures/config.yml'), 'utf8'))
@@ -57,32 +83,6 @@ describe('Find reviewers', () => {
       hexConfig = btoa(JSON.stringify(config))
     })
     test('Complete config', async () => {
-      let postSlackMessage = nock('https://hooks.slack.com/services/AAA/BBB/CCC')
-        .post('', {
-          'channel': '#pull_requests',
-          'username': 'find-reviewers',
-          'text': `Review requested: <https://github.com/Crunch09/octo-test/pull/2|Crunch09/octo-test#2 by Crunch09>`,
-          'attachments': [
-            {
-              'pretext': 'some readme updates',
-              'fallback': /.+1 commits, \+2 -0/,
-              'color': 'good',
-              'fields': [
-                {
-                  'title': 'Requested reviewers',
-                  'value': /.+/,
-                  'short': true
-                },
-                {
-                  'title': 'Changes',
-                  'value': '1 commits, +2 -0',
-                  'short': true
-                }
-              ]
-            }
-          ] })
-        .reply(200, 'ok')
-
       await probot.receive({ name: `pull_request`, payload: pullRequestLabeled })
 
       expect(github.pullRequests.createReviewRequest.mock.calls.length).toBe(1)
@@ -102,11 +102,29 @@ describe('Find reviewers', () => {
 
       test('does not try to post to slack', async () => {
         await probot.receive({ name: `pull_request`, payload: pullRequestLabeled })
+
+        expect(postSlackMessage.isDone()).toBeFalsy()
+      })
+    })
+
+    describe('Only one reviewer in both groups', async () => {
+      beforeEach(() => {
+        for (let i = 0; i < config.labels[0].groups.length; i++) {
+          config.labels[0].groups[i].possible_reviewers = ['florian']
+        }
+        hexConfig = btoa(JSON.stringify(config))
+      })
+      test('does not pick the same reviewer twice', async () => {
+        await probot.receive({ name: `pull_request`, payload: pullRequestLabeled })
+
+        expect(github.pullRequests.createReviewRequest.mock.calls.length).toBe(1)
+        expect(github.pullRequests.createReviewRequest.mock.calls[0][0].reviewers.length).toBe(1)
+        expect(github.pullRequests.createReviewRequest.mock.calls[0][0].reviewers[0]).toBe('florian')
       })
     })
   })
 
-  test('Reviewer unsassigned', async () => {
+  test('Reviewer unassigned', async () => {
     github.pullRequests.listReviewRequests = jest.fn().mockImplementation(() => Promise.resolve({
       data: {
         users: [{ login: 'cx-3po' }],
