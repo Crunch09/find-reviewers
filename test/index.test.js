@@ -14,9 +14,26 @@ const issueCommentCreated = require('./fixtures/issue_comment.created')
 nock.disableNetConnect()
 
 describe('Find reviewers', () => {
-  let probot, github, app, config, hexConfig, postSlackMessage
+  let probot, app, config, hexConfig, postSlackMessage, addReviewersBody, deleteReviewersBody, listReviewersResponse, configResponse
 
   beforeEach(() => {
+    config = yaml.safeLoad(fs.readFileSync(path.resolve(__dirname, 'fixtures/config.yml'), 'utf8'))
+    hexConfig = btoa(JSON.stringify(config))
+
+    listReviewersResponse = (uri, requestBody) => {
+      return {
+        users: [],
+        teams: []
+      }
+    }
+    configResponse = (uri, requestBody) => {
+      return {
+        content: hexConfig,
+        encoding: 'base64',
+        type: 'file'
+      }
+    }
+
     postSlackMessage = nock('https://hooks.slack.com/services/AAA/BBB/CCC')
       .post('', {
         'channel': '#pull_requests',
@@ -43,54 +60,43 @@ describe('Find reviewers', () => {
         ] })
       .reply(200, 'ok')
 
-    probot = new Probot({})
+    nock('https://api.github.com')
+      .post('/app/installations/227031/access_tokens')
+      .reply(200, { token: 'test' })
 
-    config = yaml.safeLoad(fs.readFileSync(path.resolve(__dirname, 'fixtures/config.yml'), 'utf8'))
-    hexConfig = btoa(JSON.stringify(config))
+    probot = new Probot({})
     app = probot.load(findReviewers)
 
-    github = {
-      repos: {
-        getContents: jest.fn().mockImplementation(() => Promise.resolve({
-          data: {
-            content: hexConfig
-          }
-        }))
-      },
-      pullRequests: {
-        listReviewRequests: jest.fn().mockImplementation(() => Promise.resolve({
-          data: {
-            users: [],
-            teams: []
-          }
-        })),
-        createReviewRequest: jest.fn().mockImplementation(() => Promise.resolve({
-          code: 404,
-          status: 'Not Found',
-          headers: {}
-        }))
-      }
-    }
+    nock('https://api.github.com')
+      .get('/repos/Crunch09/octo-test/pulls/2/requested_reviewers')
+      .reply(200, (url, requestBody) => listReviewersResponse(url, requestBody))
 
-    app.auth = () => Promise.resolve(github)
+    nock('https://api.github.com')
+      .get('/repos/Crunch09/octo-test/contents/.github/reviewers.yml')
+      .reply(200, (url, requestBody) => configResponse(url, requestBody))
+
+    nock('https://api.github.com')
+      .post('/repos/Crunch09/octo-test/pulls/2/requested_reviewers', body => addReviewersBody(body))
+      .reply(200, {})
+
+    nock('https://api.github.com')
+      .delete('/repos/Crunch09/octo-test/pulls/2/requested_reviewers', body => deleteReviewersBody(body))
+      .reply(200, {})
 
     app.app = () => 'test'
   })
 
   describe('PR labeled', async () => {
-    beforeEach(() => {
-      github.pullRequests.createReviewRequest = jest.fn().mockImplementation(({ owner, repo, number, reviewers, teamReviewers }) => Promise.resolve())
-      hexConfig = btoa(JSON.stringify(config))
-    })
     test('Complete config', async () => {
+      addReviewersBody = (body) => {
+        expect(body.reviewers.length).toBe(3)
+        let intersection = config.labels[0].groups[0].possible_reviewers.filter(x => body.reviewers.includes(x))
+        expect(intersection.length).toBe(2)
+        intersection = config.labels[0].groups[1].possible_reviewers.filter(x => body.reviewers.includes(x))
+        expect(intersection.length).toBe(1)
+        return true
+      }
       await probot.receive({ name: `pull_request`, payload: pullRequestLabeled })
-
-      expect(github.pullRequests.createReviewRequest.mock.calls.length).toBe(1)
-      expect(github.pullRequests.createReviewRequest.mock.calls[0][0].reviewers.length).toBe(3)
-      let intersection = config.labels[0].groups[0].possible_reviewers.filter(x => github.pullRequests.createReviewRequest.mock.calls[0][0].reviewers.includes(x))
-      expect(intersection.length).toBe(2)
-      intersection = config.labels[0].groups[1].possible_reviewers.filter(x => github.pullRequests.createReviewRequest.mock.calls[0][0].reviewers.includes(x))
-      expect(intersection.length).toBe(1)
       expect(postSlackMessage.isDone()).toBeTruthy()
     })
 
@@ -98,6 +104,14 @@ describe('Find reviewers', () => {
       beforeEach(() => {
         delete config.notifications.slack
         hexConfig = btoa(JSON.stringify(config))
+
+        configResponse = () => {
+          return {
+            content: hexConfig,
+            encoding: 'base64',
+            type: 'file'
+          }
+        }
       })
 
       test('does not try to post to slack', async () => {
@@ -113,35 +127,47 @@ describe('Find reviewers', () => {
           config.labels[0].groups[i].possible_reviewers = ['florian']
         }
         hexConfig = btoa(JSON.stringify(config))
+
+        configResponse = () => {
+          return {
+            content: hexConfig,
+            encoding: 'base64',
+            type: 'file'
+          }
+        }
       })
       test('does not pick the same reviewer twice', async () => {
+        addReviewersBody = (body) => {
+          expect(body.reviewers.length).toBe(1)
+          expect(body.reviewers[0]).toBe('florian')
+          return true
+        }
         await probot.receive({ name: `pull_request`, payload: pullRequestLabeled })
-
-        expect(github.pullRequests.createReviewRequest.mock.calls.length).toBe(1)
-        expect(github.pullRequests.createReviewRequest.mock.calls[0][0].reviewers.length).toBe(1)
-        expect(github.pullRequests.createReviewRequest.mock.calls[0][0].reviewers[0]).toBe('florian')
       })
     })
   })
 
   test('Reviewer unassigned', async () => {
-    github.pullRequests.listReviewRequests = jest.fn().mockImplementation(() => Promise.resolve({
-      data: {
+    listReviewersResponse = (uri, requestBody) => {
+      return {
         users: [{ login: 'cx-3po' }],
         teams: []
       }
-    }))
-    github.pullRequests.deleteReviewRequest = jest.fn().mockImplementation(({ owner, repo, number, reviewers, teamReviewers }) => Promise.resolve())
+    }
 
-    github.pullRequests.createReviewRequest = ({ owner, repo, number, reviewers, teamReviewers }) => {
-      expect(config.labels[0].groups[0].possible_reviewers).toEqual(expect.arrayContaining(reviewers))
-      expect(reviewers).toEqual(expect.not.arrayContaining(['cx-3po']))
-      expect(reviewers.length).toEqual(1)
+    addReviewersBody = (body) => {
+      expect(config.labels[0].groups[0].possible_reviewers).toEqual(expect.arrayContaining(body.reviewers))
+      expect(body.reviewers).toEqual(expect.not.arrayContaining(['cx-3po']))
+      expect(body.reviewers.length).toEqual(1)
+      return true
+    }
+
+    deleteReviewersBody = (body) => {
+      expect(body.reviewers.length).toBe(1)
+      expect(body.reviewers[0]).toBe('CX-3PO')
+      return true
     }
 
     await probot.receive({ name: `issue_comment`, payload: issueCommentCreated })
-    expect(github.pullRequests.listReviewRequests.mock.calls.length).toBe(1)
-    expect(github.pullRequests.deleteReviewRequest.mock.calls.length).toBe(1)
-    expect(github.pullRequests.deleteReviewRequest.mock.calls[0][0].reviewers).toEqual(['CX-3PO'])
   })
 })
