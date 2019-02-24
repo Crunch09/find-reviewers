@@ -1,0 +1,28 @@
+{
+  "data": {
+    "user_0": {
+      "login": "romain",
+      "status": {
+        "indicatesLimitedAvailability": true
+      }
+    },
+    "user_1": {
+      "login": "maria",
+      "status": {
+        "indicatesLimitedAvailability": true
+      }
+    },
+    "user_2": {
+      "login": "amal",
+      "status": {
+        "indicatesLimitedAvailability": true
+      }
+    },
+    "user_3": {
+      "login": "ana",
+      "status": {
+        "indicatesLimitedAvailability": false
+      }
+    }
+  }
+}

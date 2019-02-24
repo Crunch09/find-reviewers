@@ -1,0 +1,38 @@
+{
+  "data": {
+    "user_0": {
+      "login": "florian",
+      "status": {
+        "indicatesLimitedAvailability": true
+      }
+    },
+    "user_1": {
+      "login": "erika",
+      "status": {
+        "indicatesLimitedAvailability": true
+      }
+    },
+    "user_2": {
+      "login": "octobot",
+      "status": {
+        "indicatesLimitedAvailability": false
+      }
+    },
+    "user_3": {
+      "login": "mathilda",
+      "status": {
+        "indicatesLimitedAvailability": true
+      }
+    },
+    "user_4": {
+      "login": "james",
+      "status": {
+        "indicatesLimitedAvailability": true
+      }
+    },
+    "user_5": {
+      "login": "cx-3po",
+      "status": null
+    }
+  }
+}

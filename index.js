@@ -1,4 +1,5 @@
 const Slack = require('./lib/slack')
+const GraphQL = require('./lib/graphql')
 
 module.exports = app => {
   app.on(`pull_request.labeled`, async context => {
@@ -66,7 +67,11 @@ module.exports = app => {
                 possibleReviewers.splice(index, 1)
               }
             }
-            return possibleReviewers[Math.floor(Math.random() * possibleReviewers.length)]
+            let graphQl = new GraphQL(context)
+            possibleReviewers = await graphQl.filterAvailableUsers(possibleReviewers)
+            if (possibleReviewers.length > 0) {
+              return possibleReviewers[Math.floor(Math.random() * possibleReviewers.length)]
+            }
           }
         }
       }
@@ -106,6 +111,10 @@ module.exports = app => {
             possibleReviewers.splice(index, 1)
           }
         }
+
+        // Remove reviewers who are busy according to their user status
+        let graphQl = new GraphQL(context)
+        possibleReviewers = await graphQl.filterAvailableUsers(possibleReviewers)
 
         // Pick reviewers at random until you have enough, or run out of possible reviewers
         for (let i = 0; i < numberOfPicks && possibleReviewers.length > 0; i++) {

@@ -10,13 +10,18 @@ const findReviewers = require('..')
 // Require fixtures
 const pullRequestLabeled = require('./fixtures/pull_request.labeled')
 const issueCommentCreated = require('./fixtures/issue_comment.created')
+const userStatusResponseGroupOne = require('./fixtures/user_status_response_group_one')
+const userStatusResponseGroupTwo = require('./fixtures/user_status_response_group_two')
 
+jest.setTimeout(10000)
 nock.disableNetConnect()
 
 describe('Find reviewers', () => {
-  let probot, app, config, hexConfig, postSlackMessage, addReviewersBody, deleteReviewersBody, listReviewersResponse, configResponse
+  let probot, app, config, hexConfig, postSlackMessage, addReviewersBody,
+    deleteReviewersBody, graphQlResponse, listReviewersResponse, configResponse
 
   beforeEach(() => {
+    nock.cleanAll()
     config = yaml.safeLoad(fs.readFileSync(path.resolve(__dirname, 'fixtures/config.yml'), 'utf8'))
     hexConfig = btoa(JSON.stringify(config))
 
@@ -33,6 +38,11 @@ describe('Find reviewers', () => {
         type: 'file'
       }
     }
+    graphQlResponse = (uri, requestBody) => {
+      return { data: { } }
+    }
+    addReviewersBody = (body) => { return true }
+    deleteReviewersBody = (body) => { return true }
 
     postSlackMessage = nock('https://hooks.slack.com/services/AAA/BBB/CCC')
       .post('', {
@@ -61,46 +71,63 @@ describe('Find reviewers', () => {
       .reply(200, 'ok')
 
     nock('https://api.github.com')
-      .post('/app/installations/227031/access_tokens')
-      .reply(200, { token: 'test' })
+      .post('/app/installations/227031/access_tokens').reply(200, { token: 'test' })
+      .get('/repos/Crunch09/octo-test/contents/.github/reviewers.yml').reply(200, (url, requestBody) => configResponse(url, requestBody))
+      .get('/repos/Crunch09/octo-test/pulls/2/requested_reviewers').reply(200, (url, requestBody) => listReviewersResponse(url, requestBody))
+      .post('/repos/Crunch09/octo-test/pulls/2/requested_reviewers', body => addReviewersBody(body)).reply(200, {})
+      .delete('/repos/Crunch09/octo-test/pulls/2/requested_reviewers', body => deleteReviewersBody(body)).reply(200, {})
+      .post('/graphql').times(3).reply(200, (url, requestBody) => graphQlResponse(url, requestBody))
 
     probot = new Probot({})
     app = probot.load(findReviewers)
-
-    nock('https://api.github.com')
-      .get('/repos/Crunch09/octo-test/pulls/2/requested_reviewers')
-      .reply(200, (url, requestBody) => listReviewersResponse(url, requestBody))
-
-    nock('https://api.github.com')
-      .get('/repos/Crunch09/octo-test/contents/.github/reviewers.yml')
-      .reply(200, (url, requestBody) => configResponse(url, requestBody))
-
-    nock('https://api.github.com')
-      .post('/repos/Crunch09/octo-test/pulls/2/requested_reviewers', body => addReviewersBody(body))
-      .reply(200, {})
-
-    nock('https://api.github.com')
-      .delete('/repos/Crunch09/octo-test/pulls/2/requested_reviewers', body => deleteReviewersBody(body))
-      .reply(200, {})
-
     app.app = () => 'test'
   })
 
-  describe('PR labeled', async () => {
-    test('Complete config', async () => {
-      addReviewersBody = (body) => {
-        expect(body.reviewers.length).toBe(3)
-        let intersection = config.labels[0].groups[0].possible_reviewers.filter(x => body.reviewers.includes(x))
-        expect(intersection.length).toBe(2)
-        intersection = config.labels[0].groups[1].possible_reviewers.filter(x => body.reviewers.includes(x))
-        expect(intersection.length).toBe(1)
-        return true
-      }
-      await probot.receive({ name: `pull_request`, payload: pullRequestLabeled })
-      expect(postSlackMessage.isDone()).toBeTruthy()
+  describe('PR labeled', () => {
+    describe('Config with all available options', () => {
+      test('Complete config', async () => {
+        addReviewersBody = (body) => {
+          expect(body.reviewers.length).toBe(3)
+          let intersection = config.labels[0].groups[0].possible_reviewers.filter(x => body.reviewers.includes(x))
+          expect(intersection.length).toBe(2)
+          intersection = config.labels[0].groups[1].possible_reviewers.filter(x => body.reviewers.includes(x))
+          expect(intersection.length).toBe(1)
+          return true
+        }
+        await probot.receive({ name: `pull_request`, payload: pullRequestLabeled })
+
+        expect(postSlackMessage.isDone()).toBeTruthy()
+      })
+
+      describe('with people being busy', () => {
+        beforeEach(() => {
+          graphQlResponse = (url, requestBody) => {
+            if (requestBody.query.match(/florian/)) {
+              // first reviewers group
+              return userStatusResponseGroupOne
+            }
+            // second reviewers group
+            return userStatusResponseGroupTwo
+          }
+        })
+
+        test('excludes those people', async () => {
+          addReviewersBody = (body) => {
+            let intersection = ['cx-3po', 'octobot', 'ana'].filter(x => body.reviewers.includes(x))
+            expect(body.reviewers.length).toBe(3)
+            expect(intersection.length).toBe(3)
+            if (body.reviewers['florian'] || body.reviewers['mathilda'] || body.reviewers['amal'] || body.reviewers['erika']) {
+              return false
+            }
+            return true
+          }
+
+          await probot.receive({ name: `pull_request`, payload: pullRequestLabeled })
+        })
+      })
     })
 
-    describe('Config without notifications', async () => {
+    describe('Config without notifications', () => {
       beforeEach(() => {
         delete config.notifications.slack
         hexConfig = btoa(JSON.stringify(config))
@@ -147,27 +174,53 @@ describe('Find reviewers', () => {
     })
   })
 
-  test('Reviewer unassigned', async () => {
-    listReviewersResponse = (uri, requestBody) => {
-      return {
-        users: [{ login: 'cx-3po' }],
-        teams: []
+  describe('Reviewer unassigned', () => {
+    beforeEach(() => {
+      listReviewersResponse = (uri, requestBody) => {
+        return {
+          users: [{ login: 'cx-3po' }],
+          teams: []
+        }
       }
-    }
+    })
+    test('finds a replacement', async () => {
+      addReviewersBody = (body) => {
+        expect(config.labels[0].groups[0].possible_reviewers).toEqual(expect.arrayContaining(body.reviewers))
+        expect(body.reviewers).toEqual(expect.not.arrayContaining(['cx-3po']))
+        expect(body.reviewers.length).toEqual(1)
+        return true
+      }
 
-    addReviewersBody = (body) => {
-      expect(config.labels[0].groups[0].possible_reviewers).toEqual(expect.arrayContaining(body.reviewers))
-      expect(body.reviewers).toEqual(expect.not.arrayContaining(['cx-3po']))
-      expect(body.reviewers.length).toEqual(1)
-      return true
-    }
+      deleteReviewersBody = (body) => {
+        expect(body.reviewers.length).toBe(1)
+        expect(body.reviewers[0]).toBe('CX-3PO')
+        return true
+      }
+      await probot.receive({ name: `issue_comment`, payload: issueCommentCreated })
+    })
 
-    deleteReviewersBody = (body) => {
-      expect(body.reviewers.length).toBe(1)
-      expect(body.reviewers[0]).toBe('CX-3PO')
-      return true
-    }
+    describe('with people being busy', () => {
+      beforeEach(() => {
+        graphQlResponse = (url, requestBody) => {
+          return {
+            data: {
+              user_0: {
+                login: 'octobot',
+                status: null
+              }
+            }
+          }
+        }
+      })
 
-    await probot.receive({ name: `issue_comment`, payload: issueCommentCreated })
+      test('excludes those people', async () => {
+        addReviewersBody = (body) => {
+          expect(body.reviewers.length).toBe(1)
+          expect(body.reviewers[0]).toBe('octobot')
+          return true
+        }
+        await probot.receive({ name: `issue_comment`, payload: issueCommentCreated })
+      })
+    })
   })
 })
