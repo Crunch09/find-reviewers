@@ -55,7 +55,17 @@ notifications:
   slack:
     url: "https://hooks.slack.com/services/AAA/BBB/CCC"
     channel: "#pull_requests"
+
+# Optional: Define mappings between GitHub usernames and Slack usernames so people
+# get a notification when their review is being requested.
+# The slack user-id can be found in each user's profile settings.
+user_mappings:
+  florian:
+    slack: U123456
+  octobot:
+    slack: U987654
 ```
+
 
 ## Contributing
 

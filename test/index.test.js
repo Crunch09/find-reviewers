@@ -48,7 +48,7 @@ describe('Find reviewers', () => {
       .post('', {
         'channel': '#pull_requests',
         'username': 'find-reviewers',
-        'text': `Review requested: <https://github.com/Crunch09/octo-test/pull/2|Crunch09/octo-test#2 by Crunch09>`,
+        'text': /Review requested: <https:\/\/github.com\/Crunch09\/octo-test\/pull\/2\|Crunch09\/octo-test#2 by Crunch09>.*/,
         'attachments': [
           {
             'pretext': 'some readme updates',

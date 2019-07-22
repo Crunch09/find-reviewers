@@ -32,3 +32,8 @@ notifications:
   slack:
     url: "https://hooks.slack.com/services/AAA/BBB/CCC"
     channel: "#pull_requests"
+user_mappings:
+  florian:
+    slack: U123456
+  octobot:
+    slack: U987654

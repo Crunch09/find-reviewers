@@ -8,7 +8,7 @@ module.exports = app => {
     const config = await context.config('reviewers.yml')
     for (let i in config.labels) {
       if (label === config.labels[i].label) {
-        await assignReviewers(context, config.labels[i], config.notifications)
+        await assignReviewers(context, config.labels[i], config.notifications, config.user_mappings)
       }
     }
   })
@@ -79,7 +79,7 @@ module.exports = app => {
     return null
   }
 
-  async function assignReviewers (context, config, notificationsConfig) {
+  async function assignReviewers (context, config, notificationsConfig, userMappings) {
     const owner = context.payload.pull_request.user.login.toLowerCase()
     const existingReviewers = await getCurrentReviewers(context)
     let pickedReviewers = []
@@ -137,7 +137,7 @@ module.exports = app => {
           )
         )
         if (!!notificationsConfig && notificationsConfig.hasOwnProperty('slack')) {
-          let slack = new Slack(context.payload.pull_request, notificationsConfig.slack, pickedReviewers)
+          let slack = new Slack(context.payload.pull_request, notificationsConfig.slack, pickedReviewers, userMappings)
           await slack.sendMessage()
         }
       } catch (error) {
